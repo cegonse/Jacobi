@@ -54,10 +54,8 @@ function [ xs, k ] = jacobi( A, b, x0, conv )
     end
     
     % T and C matrices
-    L + U
-    A
-    T = -Dinv*(L+U)
-    C = Dinv*b
+    T = -Dinv*(L+U);
+    C = Dinv*b;
     
     e = 100;
     xprev = x0;
