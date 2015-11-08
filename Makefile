@@ -1,21 +1,25 @@
-CC = gcc
-LFLAGS = -Wall -lblas -lm
-CFLAGS = -Wall -c -g -march=native -O3
-OBJ = bin/objs/jacobi.o bin/objs/debug.o
+CC = icc
+CFLAGS = -O3 -mkl -openmp -g
+SRC = src/debug.c src/diaginv.c src/isdom.c src/lpu.c src/ct.c src/math/mathsub.c src/jacobi.c src/main.c
+SEQ = -DFORCE_SEQUENTIAL
+OMP = -DFORCE_OPENMP
+DBG = -DDEBUG
 
-all : clean jacobi.o debug.o main.o
-	$(CC) $(LFLAGS) $(OBJ) bin/objs/main.o -o bin/jacobi
+all : clean
+	$(CC) $(CFLAGS) $(SRC) -o bin/jacobi
 
-main.o :
-	$(CC) $(CFLAGS) src/main.c -o bin/objs/main.o
-
-jacobi.o :
-	$(CC) $(CFLAGS) src/jacobi.c -o bin/objs/jacobi.o
+force-sequential : clean
+	$(CC) $(CFLAGS) $(SEQ) $(SRC) -o bin/jacobi
 	
-debug.o :
-	$(CC) $(CFLAGS) src/debug.c -o bin/objs/debug.o
+force-openmp : clean
+	$(CC) $(CFLAGS) $(OMP) $(SRC) -o bin/jacobi
+	
+debug : clean
+	$(CC) $(CFLAGS) $(DBG) $(SRC) -o bin/jacobi
+	
+debug-sequential : clean
+	$(CC) $(CFLAGS) $(SEQ) $(DBG) $(SRC) -o bin/jacobi
 	
 clean :
 	rm -rf bin
 	mkdir bin
-	mkdir bin/objs

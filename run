@@ -1,0 +1,69 @@
+make force-sequential
+
+./bin/jacobi 50 > ./test/seq/50
+echo "Sequential 50 finished"
+
+./bin/jacobi 100 > ./test/seq/100
+echo "Sequential 100 finished"
+
+./bin/jacobi 200 > ./test/seq/200
+echo "Sequential 200 finished"
+
+./bin/jacobi 500 > ./test/seq/500
+echo "Sequential 500 finished"
+
+./bin/jacobi 1000 > ./test/seq/1000
+echo "Sequential 1000 finished"
+
+./bin/jacobi 2500 > ./test/seq/2500
+echo "Sequential 2500 finished"
+
+./bin/jacobi 5000 > ./test/seq/5000
+echo "Sequential 5000 finished"
+
+make force-openmp
+
+./bin/jacobi 50 > ./test/omp/50
+echo "OpenMP 50 finished"
+
+./bin/jacobi 100 > ./test/omp/100
+echo "OpenMP 100 finished"
+
+./bin/jacobi 200 > ./test/omp/200
+echo "OpenMP 200 finished"
+
+./bin/jacobi 500 > ./test/omp/500
+echo "OpenMP 500 finished"
+
+./bin/jacobi 1000 > ./test/omp/1000
+echo "OpenMP 1000 finished"
+
+./bin/jacobi 2500 > ./test/omp/2500
+echo "OpenMP 2500 finished"
+
+./bin/jacobi 5000 > ./test/omp/5000
+echo "OpenMP 5000 finished"
+
+make
+
+./bin/jacobi 50 > ./test/def/50
+echo "Combined 50 finished"
+
+./bin/jacobi 100 > ./test/def/100
+echo "Combined 100 finished"
+
+./bin/jacobi 200 > ./test/def/200
+echo "Combined 200 finished"
+
+./bin/jacobi 500 > ./test/def/500
+echo "Combined 500 finished"
+
+./bin/jacobi 1000 > ./test/def/1000
+echo "Combined 1000 finished"
+
+./bin/jacobi 2500 > ./test/def/2500
+echo "Combined 2500 finished"
+
+./bin/jacobi 5000 > ./test/def/5000
+echo "Combined 5000 finished"
+

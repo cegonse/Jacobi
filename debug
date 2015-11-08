@@ -1,0 +1,3 @@
+clear
+make
+gdb --args ./bin/jacobi 50
