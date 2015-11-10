@@ -1,0 +1,6 @@
+# Hostfile for UPV Quadcluster
+quadcluster
+nc01
+nc02
+nc03
+nc04

@@ -3,19 +3,19 @@
 
 double* diaginv(double *A, int n, double *diag)
 {
-	int p, chunk, csize;
+	int p, chunk, minsize;
 	
 	p = omp_get_max_threads();
-	csize = 2*p;
+	minsize = 4*p;
 	chunk = n/p;
 	
 	#ifdef FORCE_SEQUENTIAL
-	csize = chunk - 1;
+	chunk = minsize - 1;
 	#elif FORCE_OPENMP
-	csize = chunk + 1;
+	chunk = minsize + 1;
 	#endif
 	
-	if (chunk > csize)
+	if (chunk < minsize)
 	{
 		// Secuencial
 		__diaginv_kernel_sequential(A, n, diag);

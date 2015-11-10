@@ -12,8 +12,7 @@
 #include <omp.h>
 #include <mkl.h>
 #include <string.h>
-
-#include ".math/matsub.h"
+#include <mpi.h>
 
 // Errores devueltos por el algoritmo de Jacobi:
 // 
@@ -52,7 +51,14 @@ enum
 // Parámetros de salida:
 // > (int): devuelve el número de iteraciones que han sido necesarias para
 //	        obtener la solución, o un error en caso de fallo.
-int jacobi(double *A, double *b, double *x0, double conv, int n);
+int jacobi(double *A, double *b, double *x0, double conv, int n, int rank);
+
+
+double jaciter(double *A, double *b, double *T, double *C, double *xk, double *xkp1, double *xconv, int n);
+static inline double __jaciter_kernel_sequential(double *A, double *b, double *T, double *C, double *xk,
+		double *xkp1, double *xconv, int n);
+static inline double __jaciter_kernel_parallel(double *A, double *b, double *T, double *C, double *xk,
+		double *xkp1, double *xconv, int n, int chunk, int p);
 
 
 void getct(double *Dinv, double *LPU, double *T, double *b, double *C, int n);
