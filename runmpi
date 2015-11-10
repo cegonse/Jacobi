@@ -1,1 +1,2 @@
-mpirun -n 5 --hostfile ./hostfile ./bin/jacobi 64
+make -f Makefile.mpi
+mpirun -n 5 --hostfile ./hostfile ./bin/jacobi_mpi 64

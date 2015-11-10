@@ -5,7 +5,7 @@ SEQ = -DFORCE_SEQUENTIAL
 OMP = -DFORCE_OPENMP
 DBG = -DDEBUG
 
-all :
+all : clean
 	$(CC) $(CFLAGS) $(SRC) -o bin/jacobi
 
 force-sequential : clean

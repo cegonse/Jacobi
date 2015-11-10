@@ -1,5 +1,5 @@
 #include <sys/time.h>
-#include "jacobi.h"
+#include "../jacobi.h"
 
 void saveMatrix(char *name, double *x, int n, int ndim)
 {
@@ -46,14 +46,13 @@ int main (int argc, char* argv[])
 	struct timeval t0, tf;
 	double ep;
 	char hname[MPI_MAX_PROCESSOR_NAME];
-	double *A, *b, *x0;
+	double *A = NULL, *b = NULL, *x0 = NULL;
 	
 	MPI_Init (&argc, &argv);
 	
 	MPI_Comm_rank(MPI_COMM_WORLD, &rank);
 	MPI_Comm_size(MPI_COMM_WORLD, &size);
 	MPI_Get_processor_name(hname, &hlen);
-	
 	
 	if (argc < 2)
 	{
@@ -81,8 +80,12 @@ int main (int argc, char* argv[])
 	srand(time(NULL));
 	n = atoi(argv[1]);
 	
+	// La inicialización del problema sólo se realiza en
+	// el nodo 0
 	if (rank == 0)
 	{
+		// Creamos las matrices del problema de tamaño 1*n o
+		// n*n
 		A = (double*) malloc(sizeof(double)*n*n);
 		b = (double*) malloc(sizeof(double)*n);
 		x0 = (double*) malloc(sizeof(double)*n);
@@ -110,7 +113,7 @@ int main (int argc, char* argv[])
 	}
 	
 	gettimeofday(&t0, NULL);
-	k = jacobi(A, b, x0, conv, n, rank);
+	k = jacobi(A, b, x0, conv, n, rank, size);
 	gettimeofday(&tf, NULL);
 	
 	if (k < 0)
@@ -120,6 +123,9 @@ int main (int argc, char* argv[])
 	
 	ep = (tf.tv_sec - t0.tv_sec) + (tf.tv_usec - t0.tv_usec) / 1000000.0;
 	
+	// Borramos los datos inicializados al inicio del problema
+	// y mostramos las estadísticas (tamaño matriz, iteraciones y tiempo).
+	// Si se ha especificado, guardamos el resultado como archivo DLM
 	if (rank == 0)
 	{
 		printf("%d %d %.6f\n", n, k, ep);

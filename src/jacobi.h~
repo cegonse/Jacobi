@@ -10,15 +10,13 @@
 #include <assert.h>
 #include <signal.h>
 #include <omp.h>
-#include <string.h>
 
 #if defined(__INTEL_COMPILER)
 #include <mkl.h>
 #endif
 
-#if defined(MPI)
+#include <string.h>
 #include <mpi.h>
-#endif
 
 // Errores devueltos por el algoritmo de Jacobi:
 // 
