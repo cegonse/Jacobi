@@ -6,7 +6,7 @@ double* diaginv(double *A, int n, double *diag)
 	int p, chunk, minsize;
 	
 	p = omp_get_max_threads();
-	minsize = 4*p;
+	minsize = BLOCK_SIZE;
 	chunk = n/p;
 	
 	#ifdef FORCE_SEQUENTIAL

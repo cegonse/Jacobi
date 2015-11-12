@@ -6,7 +6,7 @@ int isdom(double *A, int n)
 	int p, chunk, minsize, dom;
 	
 	p = omp_get_max_threads();
-	minsize = 4*p;
+	minsize = BLOCK_SIZE;
 	chunk = n/p;
 	
 	#ifdef FORCE_SEQUENTIAL

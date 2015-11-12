@@ -13,7 +13,7 @@ int jacobi(double *A, double *b, double *x0, double conv, int n)
 	
 	#ifdef DEBUG
 	printf("A:\n");
-	printMat(A, n);
+	printMat(A, n, n);
 	printf("\n\n");
 
 	printf("b:\n");
@@ -50,11 +50,11 @@ int jacobi(double *A, double *b, double *x0, double conv, int n)
 	
 	#ifdef DEBUG
 	printf("Dinv:\n");
-	printMat(Dinv, n);
+	printMat(Dinv, n, n);
 	printf("\n\n");
 	
 	printf("L+U:\n");
-	printMat(LPU, n);
+	printMat(LPU, n, n);
 	printf("\n\n");
 	#endif
 	
@@ -62,11 +62,11 @@ int jacobi(double *A, double *b, double *x0, double conv, int n)
 	// Utilizando estas matrices, transformamos
 	// la operación a la forma x1 = T*x0 + C
 	//
-	getct(Dinv, LPU, T, b, C, n);
+	getct(Dinv, LPU, T, b, C, n, n);
 	
 	#ifdef DEBUG
 	printf("T:\n");
-	printMat(T, n);
+	printMat(T, n, n);
 	printf("\n\n");
 	
 	printf("C:\n");

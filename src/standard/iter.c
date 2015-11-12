@@ -8,7 +8,7 @@ double jaciter(double *A, double *b, double *T, double *C, double *xk, double *x
 	double e;
 	
 	p = omp_get_max_threads();
-	minsize = 4*p;
+	minsize = BLOCK_SIZE;
 	chunk = n/p;
 	
 	#ifdef FORCE_SEQUENTIAL
@@ -35,11 +35,11 @@ double __jaciter_kernel_sequential(double *A, double *b, double *T, double *C, d
 {
 	int incx = 1;
 	char trans = 'N';
-	double alpha = -1.0, beta = 1.0, gamma = 0.0;
+	double alpha = -1.0, beta = 1.0, gamma = 0.0, e = 0.0;
 
 	// x(k+1) = T*x(k) + C
 	// 1: x(k+1) = T*x(k)
-	dgemv_seq(n, beta, T, xk, gamma, xkp1);
+	dgemv_seq(n, n, beta, T, xk, gamma, xkp1);
 	
 	// 2: x(k+1) = x(k+1) + C
 	daxpy_seq(n, beta, C, xkp1);
@@ -50,13 +50,14 @@ double __jaciter_kernel_sequential(double *A, double *b, double *T, double *C, d
 	// Calculamos la cota de error
 	// e = norm2(A*x(k) - b)
 	// 1: xconv = A*x(k)
-	dgemv_seq(n, beta, A, xkp1, gamma, xconv);
+	dgemv_seq(n, n, beta, A, xkp1, gamma, xconv);
 	
 	// 2: xconv =  -b + xconv
 	daxpy_seq(n, alpha, b, xconv);
 	
 	// 3: conv = norm2(xconv)
-	return dnrm2_seq(n, xconv);
+	dnrm2_seq(n, xconv, &e);
+	return e;
 }
 
 

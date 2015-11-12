@@ -48,8 +48,10 @@ int main (int argc, char* argv[])
 	char hname[MPI_MAX_PROCESSOR_NAME];
 	double *A = NULL, *b = NULL, *x0 = NULL;
 	
+	// Inicializamos MPI y obtenemos el número de nodo
+	// local, la cantidad de nodos en ejecucción y el
+	// hostname del nodo local.
 	MPI_Init (&argc, &argv);
-	
 	MPI_Comm_rank(MPI_COMM_WORLD, &rank);
 	MPI_Comm_size(MPI_COMM_WORLD, &size);
 	MPI_Get_processor_name(hname, &hlen);
@@ -77,25 +79,33 @@ int main (int argc, char* argv[])
 		}
 	}
 	
-	srand(time(NULL));
+	// Obtenemos el tamaño de las matrices del problema a
+	// partir de los parámetros de entrada.
 	n = atoi(argv[1]);
+	
+	// Creamos las matrices del problema de tamaño 1*n o
+	// n*n
+	A = (double*) malloc(sizeof(double)*n*n);
+	b = (double*) malloc(sizeof(double)*n);
+	x0 = (double*) malloc(sizeof(double)*n);
+	
+	if (A == NULL || b == NULL || x0 == NULL)
+	{
+		if (rank == 0)
+		{
+			fprintf(stderr, "Error creating input data: %s\n", strerror(errno));
+		}
+		
+		MPI_Abort(MPI_COMM_WORLD, errno);
+	}
 	
 	// La inicialización del problema sólo se realiza en
 	// el nodo 0
 	if (rank == 0)
-	{
-		// Creamos las matrices del problema de tamaño 1*n o
-		// n*n
-		A = (double*) malloc(sizeof(double)*n*n);
-		b = (double*) malloc(sizeof(double)*n);
-		x0 = (double*) malloc(sizeof(double)*n);
-		
-		if (A == NULL || b == NULL || x0 == NULL)
-		{
-			fprintf(stderr, "Error creating input data: %s\n", strerror(errno));
-			exit(1);
-		}
-		
+	{	
+		// Semilla para los números aleatorios
+		srand(time(NULL));
+	
 		// Rellenamos A y b con valores aleatorios,
 		// y x0 con todo unos
 		for (i = 0; i < n; i++)
@@ -112,8 +122,14 @@ int main (int argc, char* argv[])
 		}
 	}
 	
+	// Para el nodo cero, los vectores y matrices del
+	// sistema contendrán los valores que tendrá que repartir
+	// al resto de nodos.
+	//
+	// Para el resto de nodos, las matrices estarán vacías, y tendrán
+	// que rellenarlas a partir de los datos que envíe el nodo cero.
 	gettimeofday(&t0, NULL);
-	k = jacobi_mpi(A, b, x0, conv, n, rank, size);
+	k = jacobi_mpi(A, b, x0, conv, n, rank, size, hname);
 	gettimeofday(&tf, NULL);
 	
 	if (k < 0)
@@ -125,7 +141,7 @@ int main (int argc, char* argv[])
 	
 	// Borramos los datos inicializados al inicio del problema
 	// y mostramos las estadísticas (tamaño matriz, iteraciones y tiempo).
-	// Si se ha especificado, guardamos el resultado como archivo DLM
+	// Si se ha especificado, guardamos el resultado como archivo DLM.
 	if (rank == 0)
 	{
 		printf("%d %d %.6f\n", n, k, ep);
@@ -136,13 +152,13 @@ int main (int argc, char* argv[])
 			saveMatrix("A", A, n, 2);
 			saveMatrix("b", b, n, 1);
 		}
-		
-		free(A);
-		free(b);
-		free(x0);
 	}
 	
-	MPI_Finalize();
+	free(A);
+	free(b);
+	free(x0);
 	
+	// Finalizamos MPI y salimos
+	MPI_Finalize();
 	return 0;
 }

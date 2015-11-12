@@ -2,12 +2,26 @@ CC = mpicc
 CFLAGS = -O3 -g -mkl -openmp -DMPI
 SRC = src/debug.c src/diaginv.c src/isdom.c src/lpu.c src/ct.c src/mathsub.c src/mpi/iter.c src/mpi/jacobi.c src/mpi/main.c
 DBG = -DDEBUG
+SEQ = -DFORCE_SEQUENTIAL
+OMP = -DFORCE_OPENMP
 
 all :
 	$(CC) $(CFLAGS) $(SRC) -o bin/jacobi_mpi
 
 debug :
 	$(CC) $(CFLAGS) $(DBG) $(SRC) -o bin/jacobi_mpi
+
+force-sequential :
+	$(CC) $(CFLAGS) $(SEQ) $(SRC) -o bin/jacobi_mpi
+
+force-openmp :
+	$(CC) $(CFLAGS) $(OMP) $(SRC) -o bin/jacobi_mpi
+	
+debug-sequential :
+	$(CC) $(CFLAGS) $(DBG) $(SEQ) $(SRC) -o bin/jacobi_mpi
+	
+debug-openmp :
+	$(CC) $(CFLAGS) $(DBG) $(OMP) $(SRC) -o bin/jacobi_mpi
 	
 clean :
 	rm -rf bin

@@ -7,12 +7,12 @@ void printVec(double* a, int n)
 	
 	for (i = 0; i < n; i++)
 	{
-		printf("[ %.6f ]\n", a[i]);
+		printf("[ %.8f ]\n", a[i]);
 	}
 }
 
 
-void printMat(double* A, int n)
+void printMat(double* A, int n, int m)
 {
 	int i, j;
 	
@@ -20,9 +20,9 @@ void printMat(double* A, int n)
 	{
 		printf("[ ");
 		
-		for (j = 0; j < n; j++)
+		for (j = 0; j < m; j++)
 		{
-			printf("%.6f ", A[i + j*n]);
+			printf("%.8f ", A[i + j*n]);
 		}
 		
 		printf("]\n");

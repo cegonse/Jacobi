@@ -20,6 +20,10 @@
 #include <mpi.h>
 #endif
 
+#ifndef BLOCK_SIZE
+#define BLOCK_SIZE 16
+#endif
+
 // Errores devueltos por el algoritmo de Jacobi:
 // 
 // > ENONDOM: la matriz de términos independientes
@@ -58,7 +62,7 @@ enum
 // > (int): devuelve el número de iteraciones que han sido necesarias para
 //	        obtener la solución, o un error en caso de fallo.
 int jacobi(double *A, double *b, double *x0, double conv, int n);
-int jacobi_mpi(double *A, double *b, double *x0, double conv, int n, int rank, int size);
+int jacobi_mpi(double *A, double *b, double *x0, double conv, int n, int rank, int size, char* hname);
 
 
 double jaciter(double *A, double *b, double *T, double *C, double *xk, double *xkp1, double *xconv, int n);
@@ -68,9 +72,9 @@ static inline double __jaciter_kernel_parallel(double *A, double *b, double *T, 
 		double *xkp1, double *xconv, int n, int chunk, int p);
 
 
-void getct(double *Dinv, double *LPU, double *T, double *b, double *C, int n);
-static inline void __getct_kernel_sequential(double *Dinv, double *LPU, double *T, double *b, double *C, int n);
-static inline void __getct_kernel_parallel(double *Dinv, double *LPU, double *T, double *b, double *C, int n, int chunk, int p);
+void getct(double *Dinv, double *LPU, double *T, double *b, double *C, int n, int m);
+static inline void __getct_kernel_sequential(double *Dinv, double *LPU, double *T, double *b, double *C, int n, int m);
+static inline void __getct_kernel_parallel(double *Dinv, double *LPU, double *T, double *b, double *C, int n, int m, int chunk, int p);
 
 
 double* getlpu(double *A, int n, double *LPU);
@@ -88,7 +92,7 @@ static inline void __diaginv_kernel_sequential(double *A, int n, double *diag);
 static inline void __diaginv_kernel_parallel(double *A, int n, double *diag, int p);
 
 
-void printMat(double* A, int n);
+void printMat(double* A, int n, int m);
 void printVec(double* a, int n);
 
 

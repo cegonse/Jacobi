@@ -8,7 +8,7 @@ double jaciter(double *A, double *b, double *T, double *C, double *xk, double *x
 	double e;
 	
 	p = omp_get_max_threads();
-	minsize = 4*p;
+	minsize = BLOCK_SIZE;
 	chunk = n/p;
 	
 	#ifdef FORCE_SEQUENTIAL
@@ -33,58 +33,79 @@ double jaciter(double *A, double *b, double *T, double *C, double *xk, double *x
 
 double __jaciter_kernel_sequential(double *A, double *b, double *T, double *C, double *xk, double *xkp1, double *xconv, int n)
 {
-	int incx = 1;
-	char trans = 'N';
-	double alpha = -1.0, beta = 1.0, gamma = 0.0;
-
+	double alpha = -1.0, beta = 1.0, gamma = 0.0, enode = 0.0;
+	int rank, size, stride, m, i, j;
+	
+	MPI_Comm_rank(MPI_COMM_WORLD, &rank);
+	MPI_Comm_size(MPI_COMM_WORLD, &size);
+	
+	m = n;
+	n = m/(size-1);
+	
 	// x(k+1) = T*x(k) + C
 	// 1: x(k+1) = T*x(k)
-	dgemv_seq(n, beta, T, xk, gamma, xkp1);
+	for (i = 0; i < n; i++)
+	{
+		xkp1[i+(rank-1)*n] = 0.0;
+		
+		for (j = 0; j < m; j++)
+		{
+			xkp1[i+(rank-1)*n] += T[i + j*n] * xk[j];
+		}
+	}
 	
 	// 2: x(k+1) = x(k+1) + C
-	daxpy_seq(n, beta, C, xkp1);
+	for (i = 0; i < n; i++)
+	{
+		xkp1[i + n*(rank-1)] += C[i];
+	}
 	
 	// Copiamos x(k+1) en x(k)
-	dcopy_seq(n, xkp1, xk);
+	dcopy_seq(n, xkp1+n*(rank-1), xk+n*(rank-1));
 	
-	// Calculamos la cota de error
-	// e = norm2(A*x(k) - b)
-	// 1: xconv = A*x(k)
-	dgemv_seq(n, beta, A, xkp1, gamma, xconv);
-	
-	// 2: xconv =  -b + xconv
-	daxpy_seq(n, alpha, b, xconv);
-	
-	// 3: conv = norm2(xconv)
-	return dnrm2_seq(n, xconv);
+	return 0.0;
 }
 
 
 static inline double __jaciter_kernel_parallel(double *A, double *b, double *T, double *C, double *xk, double *xkp1,
 double *xconv, int n, int chunk, int p)
 {
-	int incx = 1;
+	int incx = 1, rank, size, stride, m, i;
 	char trans = 'N';
-	double alpha = -1.0, beta = 1.0, gamma = 0.0;
+	double alpha = -1.0, beta = 1.0, gamma = 0.0, enode;
+	
+	omp_set_num_threads(p);
+	MPI_Comm_rank(MPI_COMM_WORLD, &rank);
+	MPI_Comm_size(MPI_COMM_WORLD, &size);
+	
+	m = n;
+	n = m/(size-1);
+	stride = (rank-1)*(m/(size-1))/2;
 	
 	// x(k+1) = T*x(k) + C
 	// 1: x(k+1) = T*x(k)
-	dgemv_(&trans, &n, &n, &beta, T, &n, xk, &incx, &gamma, xkp1, &incx);
+	dgemv_(&trans, &n, &m, &beta, T, &m, xk, &incx, &gamma, xkp1+n*(rank-1), &incx);
 	// 2: x(k+1) = x(k+1) + C
-	daxpy_(&n, &beta, C, &incx, xkp1, &incx);
+	daxpy_(&n, &beta, C, &incx, xkp1+n*(rank-1), &incx);
 	
 	// Copiamos x(k+1) en x(k)
 	//dcopy_(&n, xkp1, &incx, xk, &incx);
-	dcopy_seq(n, xkp1, xk);
+	dcopy_seq(m, xkp1, xk);
 	
 	// Calculamos la cota de error
 	// e = norm2(A*x(k) - b)
 	// 1: xconv = A*x(k)
-	dgemv_(&trans, &n, &n, &beta, A, &n, xkp1, &incx, &gamma, xconv, &incx);
+	dgemv_(&trans, &n, &m, &beta, A, &n, xkp1, &incx, &gamma, xconv, &incx);
 	
 	// 2: xconv =  -b + xconv
-	daxpy_(&n, &alpha, b, &incx, xconv, &incx);
+	daxpy_(&n, &alpha, b+n*(rank-1), &incx, xconv, &incx);
+	
+	// Reducción
+	for (i = 0; i < n; i++)
+	{
+		enode += abs(xconv[i])*abs(xconv[i]);
+	}
 	
 	// 3: conv = norm2(xconv)
-	return dnrm2_(&n, xconv, &incx);
+	return enode;
 }
