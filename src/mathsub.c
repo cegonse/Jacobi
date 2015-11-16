@@ -5,11 +5,20 @@
 void dnrm2_seq(int n, double *x, double* nrm)
 {
 	*nrm = 0.0;
-	int i;
+	int i, nc;
 	
-	for (i = 0; i < n; i ++)
+	nc = n - (n % 4);
+	
+	for (i = 0; i < nc; i += 4)
 	{
 		*nrm += x[i]*x[i];
+		*nrm += x[i+1]*x[i+1];
+		*nrm += x[i+2]*x[i+2];
+		*nrm += x[i+3]*x[i+3];
+	}
+	
+	if (nc != n) {
+		for (i = nc; i < n; i++) *nrm += x[i]*x[i];
 	}
 	
 	*nrm = sqrt(*nrm);
@@ -58,10 +67,19 @@ void dcopy_seq(int n, double *x, double *y)
 
 void daxpy_seq(int n, double alpha, double *x, double *y)
 {
-	int i;
+	int i, nc;
 	
-	for (i = 0; i < n; i++)
+	nc = n - (n % 4);
+	
+	for (i = 0; i < nc; i += 4)
 	{
 		y[i] = alpha * x[i] + y[i];
+		y[i+1] = alpha * x[i+1] + y[i+1];
+		y[i+2] = alpha * x[i+2] + y[i+2];
+		y[i+3] = alpha * x[i+3] + y[i+3];
+	}
+	
+	if (nc != n) {
+		for (i = nc; i < n; i++) y[i] = alpha * x[i] + y[i];
 	}
 }
