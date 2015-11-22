@@ -1,3 +1,2 @@
-cat "mpirun -n 5 --hostfile ./hostfile ./bin/jacobi_mpi 64"
-mpirun -n 2 ./bin/jacobi_mpi 50 --save | more
+mpirun -n 5 --hostfile ./hostfile ./bin/jacobi_mpi 5000
 

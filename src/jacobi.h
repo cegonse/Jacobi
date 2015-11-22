@@ -24,6 +24,13 @@
 #define BLOCK_SIZE 16
 #endif
 
+// Este valor sobreescribe el número de hilos OpenMP
+// a utilizar en las secciones paralelas.
+//
+// Comentar para que se utilicen tantos hilos como
+// procesadores tenga la máquina.
+//#define FORCE_THREADS 2
+
 // Errores devueltos por el algoritmo de Jacobi:
 // 
 // > ENONDOM: la matriz de términos independientes
@@ -65,22 +72,18 @@ int jacobi(double *A, double *b, double *x0, double conv, int n);
 int jacobi_mpi(double *A, double *b, double *x0, double conv, int n, int rank, int size, char* hname);
 
 
-double jaciter(double *A, double *b, double *T, double *C, double *xk, double *xkp1, double *xconv, int n);
-static inline double __jaciter_kernel_sequential(double *A, double *b, double *T, double *C, double *xk,
-		double *xkp1, double *xconv, int n);
-static inline double __jaciter_kernel_parallel(double *A, double *b, double *T, double *C, double *xk,
-		double *xkp1, double *xconv, int n, int chunk, int p);
+double jaciter(double *A, double *b, double *R, double *C, double *Dinv, double *xk, double *xkp1, double *xconv, int n);
+
+static inline double 
+__jaciter_kernel_sequential(double *A, double *b, double *R, double *C, double *Dinv, double *xk, double *xkp1, double *xconv, int n);
+
+static inline double 
+__jaciter_kernel_parallel(double *A, double *b, double *R, double *C, double *Dinv, double *xk, double *xkp1, double *xconv, int n, int p);
 
 
-void getct(double *Dinv, double *LPU, double *T, double *b, double *C, int n, int m);
-static inline void __getct_kernel_sequential(double *Dinv, double *LPU, double *T, double *b, double *C, int n, int m);
-static inline void __getct_kernel_parallel(double *Dinv, double *LPU, double *T, double *b, double *C, int n, int m, int chunk, int p);
-
-
-double* getlpu(double *A, int n, double *LPU);
-static inline void __getlpu_kernel_sequential(double *A, int n, double *LPU);
-static inline void __getlpu_kernel_parallel(double *A, int n, double *LPU, int p);
-
+void getrd(double *Dinv, double *R, double *A, double *b, double *C, int n, int m);
+static inline void __getrd_kernel_sequential(double *Dinv, double *R, double *A, double *b, double *C, int n, int m);
+static inline void __getrd_kernel_parallel(double *Dinv, double *R, double *A, double *b, double *C, int n, int m, int p);
 
 int isdom(double *A, int n);
 static inline int __isdom_kernel_sequential(double *A, int n);
@@ -95,11 +98,8 @@ static inline void __diaginv_kernel_parallel(double *A, int n, double *diag, int
 void printMat(double* A, int n, int m);
 void printVec(double* a, int n);
 
+int generateMatrices(double *A, double *b, double *x0, int n);
+void saveMatrix(char *name, double *x, int n, int ndim);
 
-// Declaraciones de funciones del BLAS
-int dgemm_(char *transa, char *transb, int *m, int *n, int *k, double *alpha, double *a, int *lda, 
-	double *b, int *ldb, double *beta, double *c, int *ldc);
-
-double dnrm2_(int *n, double *x, int *incx);
 
 #endif // _JACOBI_H_

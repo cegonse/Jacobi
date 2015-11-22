@@ -1,43 +1,6 @@
-#include <sys/time.h>
 #include "../jacobi.h"
-
-void saveMatrix(char *name, double *x, int n, int ndim)
-{
-	char fname[128];
-	strcpy(fname, name);
-	strcat(fname, ".dlm");
-
-	FILE *f = fopen(fname, "w+");
-	int i, j;
-	
-	if (f == NULL)
-	{
-		fprintf(stderr, "Error saving result: %s\n", strerror(errno));
-		return;
-	}
-	
-	if (ndim == 1)
-	{
-		for (i = 0; i < n; i++)
-		{
-			fprintf(f, "%.12f\n", x[i]);
-		}
-	}
-	else if (ndim == 2)
-	{
-		for (i = 0; i < n; i++)
-		{
-			for (j = 0; j < n; j++)
-			{
-				fprintf(f, "%.12f ", x[i + j*n]);
-			}
-			
-			fprintf(f, "\n");
-		}
-	}
-	
-	fclose(f);
-}
+#include <sys/time.h>
+#include <locale.h>
 
 int main (int argc, char* argv[])
 {
@@ -83,44 +46,13 @@ int main (int argc, char* argv[])
 	// partir de los parámetros de entrada.
 	n = atoi(argv[1]);
 	
-	// Creamos las matrices del problema de tamaño 1*n o
-	// n*n
 	A = (double*) malloc(sizeof(double)*n*n);
 	b = (double*) malloc(sizeof(double)*n);
 	x0 = (double*) malloc(sizeof(double)*n);
 	
-	if (A == NULL || b == NULL || x0 == NULL)
-	{
-		if (rank == 0)
-		{
-			fprintf(stderr, "Error creating input data: %s\n", strerror(errno));
-		}
-		
-		MPI_Abort(MPI_COMM_WORLD, errno);
-	}
-	
-	// La inicialización del problema sólo se realiza en
-	// el nodo 0
-	if (rank == 0)
-	{	
-		// Semilla para los números aleatorios
-		srand(time(NULL));
-	
-		// Rellenamos A y b con valores aleatorios,
-		// y x0 con todo unos
-		for (i = 0; i < n; i++)
-		{
-			for (j = 0; j < n; j++)
-			{
-				// Forzamos que A sea de diagonal dominante
-				A[i + j*n] = 1.0 + (double)(rand() % 10);
-				if (i == j) A[i + j*n] += (double)n*10.0;
-			}
-			
-			b[i] = 1.0 + (double)(rand() % 10);
-			x0[i] = 1.0;
-		}
-	}
+	// Creamos las matrices del problema de tamaño 1*n o
+	// n*n
+	generateMatrices(A,b,x0,n);
 	
 	// Para el nodo cero, los vectores y matrices del
 	// sistema contendrán los valores que tendrá que repartir
@@ -144,7 +76,8 @@ int main (int argc, char* argv[])
 	// Si se ha especificado, guardamos el resultado como archivo DLM.
 	if (rank == 0)
 	{
-		printf("%d %d %.6f\n", n, k, ep);
+		setlocale(LC_NUMERIC, "es_ES.UTF-8");
+		printf("%d;%d;%.6f\n", n, k, ep);
 		
 		if (save)
 		{

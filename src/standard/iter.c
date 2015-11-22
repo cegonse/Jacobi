@@ -2,7 +2,7 @@
 #include "../mathsub.h"
 
 
-double jaciter(double *A, double *b, double *T, double *C, double *xk, double *xkp1, double *xconv, int n)
+double jaciter(double *A, double *b, double *R, double *C, double *Dinv, double *xk, double *xkp1, double *xconv, int n)
 {
 	int p, chunk, minsize;
 	double e;
@@ -20,72 +20,67 @@ double jaciter(double *A, double *b, double *T, double *C, double *xk, double *x
 	if (chunk < minsize)
 	{
 		// Secuencial
-		e = __jaciter_kernel_sequential(A, b, T, C, xk, xkp1, xconv, n);
+		e = __jaciter_kernel_sequential(A, b, R, C, Dinv, xk, xkp1, xconv, n);
 	}
 	else
 	{
 		// Paralelo
-		e = __jaciter_kernel_parallel(A, b, T, C, xk, xkp1, xconv, n, chunk, p);
+		e = __jaciter_kernel_parallel(A, b, R, C, Dinv, xk, xkp1, xconv, n, p);
 	}
 	
 	return e;
 }
 
-double __jaciter_kernel_sequential(double *A, double *b, double *T, double *C, double *xk, double *xkp1, double *xconv, int n)
+static inline double 
+__jaciter_kernel_sequential(double *A, double *b, double *R, double *C, double *Dinv, double *xk, double *xkp1, double *xconv, int n)
 {
-	int incx = 1;
-	char trans = 'N';
-	double alpha = -1.0, beta = 1.0, gamma = 0.0, e = 0.0;
-
-	// x(k+1) = T*x(k) + C
-	// 1: x(k+1) = T*x(k)
-	dgemv_seq(n, n, beta, T, xk, gamma, xkp1);
+	double e = 1.0;
+	int i;
 	
-	// 2: x(k+1) = x(k+1) + C
-	daxpy_seq(n, beta, C, xkp1);
+	dgemv_seq(n, n, 1.0, R, xk, 0.0, xkp1, 1);
+		
+	for (i = 0; i < n; i++)
+	{
+		xkp1[i] *= -Dinv[i];
+		xkp1[i] += C[i];
+	}
 	
-	// Copiamos x(k+1) en x(k)
 	dcopy_seq(n, xkp1, xk);
 	
-	// Calculamos la cota de error
-	// e = norm2(A*x(k) - b)
-	// 1: xconv = A*x(k)
-	dgemv_seq(n, n, beta, A, xkp1, gamma, xconv);
+	// Norma
+	dgemv_seq(n, n, 1.0, A, xk, 0.0, xconv, 1);
+	daxpy_seq(n, -1.0, b, xconv, 1);
+	dnrm2_seq(n, xconv, &e, 1);
 	
-	// 2: xconv =  -b + xconv
-	daxpy_seq(n, alpha, b, xconv);
-	
-	// 3: conv = norm2(xconv)
-	dnrm2_seq(n, xconv, &e);
 	return e;
 }
 
 
-static inline double __jaciter_kernel_parallel(double *A, double *b, double *T, double *C, double *xk, double *xkp1,
-double *xconv, int n, int chunk, int p)
+static inline double 
+__jaciter_kernel_parallel(double *A, double *b, double *R, double *C, double *Dinv, double *xk, double *xkp1, double *xconv, int n, int p)
 {
-	int incx = 1;
-	char trans = 'N';
-	double alpha = -1.0, beta = 1.0, gamma = 0.0;
+	double e = 1.0;
+	int i;
+	#ifdef FORCE_THREADS
+	p = FORCE_THREADS;
+	#endif
+	omp_set_num_threads(p);
 	
-	// x(k+1) = T*x(k) + C
-	// 1: x(k+1) = T*x(k)
-	dgemv_(&trans, &n, &n, &beta, T, &n, xk, &incx, &gamma, xkp1, &incx);
-	// 2: x(k+1) = x(k+1) + C
-	daxpy_(&n, &beta, C, &incx, xkp1, &incx);
+	dgemv_seq(n, n, 1.0, R, xk, 0.0, xkp1, p);
 	
-	// Copiamos x(k+1) en x(k)
-	//dcopy_(&n, xkp1, &incx, xk, &incx);
+	#pragma omp parallel for schedule(static) private(i) shared(xkp1, Dinv, C, n)
+	for (i = 0; i < n; i++)
+	{
+		xkp1[i] *= -Dinv[i];
+		xkp1[i] += C[i];
+	}
+	
 	dcopy_seq(n, xkp1, xk);
 	
-	// Calculamos la cota de error
-	// e = norm2(A*x(k) - b)
-	// 1: xconv = A*x(k)
-	dgemv_(&trans, &n, &n, &beta, A, &n, xkp1, &incx, &gamma, xconv, &incx);
+	// Norma
+	dgemv_seq(n, n, 1.0, A, xk, 0.0, xconv, p);
+	daxpy_seq(n, -1.0, b, xconv, p);
+	dnrm2_seq(n, xconv, &e, p);
 	
-	// 2: xconv =  -b + xconv
-	daxpy_(&n, &alpha, b, &incx, xconv, &incx);
-	
-	// 3: conv = norm2(xconv)
-	return dnrm2_(&n, xconv, &incx);
+	return e;
 }

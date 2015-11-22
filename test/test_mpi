@@ -1,0 +1,18 @@
+#!/bin/bash
+
+MIN=$1
+INC=$2
+MAX=$3
+
+rm mpi_result
+touch mpi_result
+cd ..
+make -f Makefile.mpi
+
+for i in `seq ${MIN} ${INC} ${MAX}`; do
+    echo 'Testing n = ' $i
+    mpirun -n 5 --hostfile ./hostfile ./bin/jacobi_mpi $i >> ./test/mpi_result
+done
+
+echo 'Test complete'
+

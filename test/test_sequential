@@ -1,0 +1,18 @@
+#!/bin/bash
+
+MIN=$1
+INC=$2
+MAX=$3
+
+rm sequential_result
+touch sequential_result
+cd ..
+make force-sequential
+
+for i in `seq ${MIN} ${INC} ${MAX}`; do
+	echo 'Testing n = ' $i
+    ./bin/jacobi $i >> ./test/sequential_result
+done
+
+echo 'Test complete'
+

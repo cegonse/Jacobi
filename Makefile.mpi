@@ -1,6 +1,6 @@
 CC = mpicc
-CFLAGS = -O3 -g -mkl -openmp -DMPI
-SRC = src/debug.c src/diaginv.c src/isdom.c src/lpu.c src/ct.c src/mathsub.c src/mpi/iter.c src/mpi/jacobi.c src/mpi/main.c
+CFLAGS = -O3 -g -mkl -openmp -DMPI -msse3
+SRC = src/debug.c src/isdom.c src/rd.c src/mathsub.c src/tools.c src/mpi/iter.c src/mpi/jacobi.c src/mpi/main.c
 DBG = -DDEBUG
 SEQ = -DFORCE_SEQUENTIAL
 OMP = -DFORCE_OPENMP

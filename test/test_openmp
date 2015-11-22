@@ -1,0 +1,17 @@
+#!/bin/bash
+
+MIN=$1
+INC=$2
+MAX=$3
+
+rm openmp_result
+touch openmp_result
+cd ..
+make force-openmp
+
+for i in `seq ${MIN} ${INC} ${MAX}`; do
+	echo 'Testing n = ' $i
+    ./bin/jacobi $i >> ./test/openmp_result
+done
+
+echo 'Test complete'

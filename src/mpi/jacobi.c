@@ -3,25 +3,15 @@
 
 int jacobi_mpi(double *A, double *b, double *x0, double conv, int n, int rank, int size, char* hname)
 {
-	double *Dinv = NULL, *T = NULL, *C = NULL, *xkp1 = NULL, *xk = NULL,
-	*xconv = NULL, *LPU = NULL, e = conv + 1.0, enode = 0.0, alpha = -1.0, beta = 1.0,
-	gamma = 0.0;
-	
-	int matdm = 0, k = 0, chunk = 0, run = 1, stride, i = 0;
+	double *Dinv = NULL, *C = NULL, *xkp1 = NULL,
+	*xconv = NULL, *R = NULL, e = conv + 1.0;
+	int matdm = 0, k = 0, chunk = 0, run = 1, i = 0, p = 1;
 	MPI_Status status;
-
-	#ifdef DEBUG
-	if (rank == 0)
-	{
-		printf("A:\n");
-		printMat(A, n, n);
-		printf("\n\n");
-
-		printf("b:\n");
-		printVec(b, n);
-		printf("\n\n");
-	}
-	#endif
+	
+	// Calculamos el tamaño de bloque. Dividimos el tamaño del 
+	// problema (n) entre p - 1 nodos, ya que el nodo cero no
+	// realiza procesamiento por bloques.
+	chunk = n/(size-1);
 	
 	// Ejecutar sólo si la matriz de términos independientes
 	// es estrictamente dominante.
@@ -30,110 +20,71 @@ int jacobi_mpi(double *A, double *b, double *x0, double conv, int n, int rank, i
 	// la condición se cancela la ejecución
 	if (rank == 0)
 	{
-		matdm = isdom(A, n);
-		
-		if (!matdm)
-		{	
+		if (!isdom(A, n))
+		{
 			fprintf(stderr, "Error obtaining Jacobi solution on \"%s\": 'A' matrix is non dominant.\n", hname);
 			MPI_Abort(MPI_COMM_WORLD, ENONDOM);
 		}
 	}
-
-	// Calculamos el tamaño de bloque. Dividimos el tamaño del 
-	// problema (n) entre p - 1 nodos, ya que el nodo cero no
-	// realiza procesamiento por bloques.
-	chunk = n/(size-1);
-	stride = (rank-1)*(n/(size-1))/2;
-	
-	#ifdef DEBUG
-	if (rank == 0) printf("n: %d, size: %d, chunk: %d\n", n, size, chunk);
-	#endif
 	
 	// Desde el nodo cero se envía la matriz A, los vectores
 	// b y x0.
-	if (rank == 0)
-	{
-		MPI_Bcast(A, n*n, MPI_DOUBLE, 0, MPI_COMM_WORLD);
-		MPI_Bcast(b, n, MPI_DOUBLE, 0, MPI_COMM_WORLD);
-		MPI_Bcast(x0, n, MPI_DOUBLE, 0, MPI_COMM_WORLD);
-		
-		xconv = (double*) malloc(sizeof(double)*n);
-	}
-	else
-	{
-		// Esperamos a recibir el tamaño de bloque, y
-		// reservamos la memoria necesaria para las
-		// matrices auxiliares.
-		MPI_Bcast(A, n*n, MPI_DOUBLE, 0, MPI_COMM_WORLD);
-		MPI_Bcast(b, n, MPI_DOUBLE, 0, MPI_COMM_WORLD);
-		MPI_Bcast(x0, n, MPI_DOUBLE, 0, MPI_COMM_WORLD);
-		
-		C = (double*) malloc(sizeof(double)*chunk);
-		T = (double*) malloc(sizeof(double)*chunk*n);
-		xkp1 = (double*) malloc(sizeof(double)*n);
-		xk = (double*) malloc(sizeof(double)*n);
-		
-		// Ha ocurrido un error al reservar memoria en uno de los nodos:
-		// Cancelamos la ejecucción del programa.
-		if (T == NULL || C == NULL || xkp1 == NULL || xk == NULL)
-		{
-			fprintf(stderr, "Error obtaining Jacobi solution on \"%s\": %s\n", hname, strerror(errno));
-			MPI_Abort(MPI_COMM_WORLD, errno);
-		}
-	}
+	MPI_Bcast(A, n*n, MPI_DOUBLE, 0, MPI_COMM_WORLD);
+	MPI_Bcast(b, n, MPI_DOUBLE, 0, MPI_COMM_WORLD);
+	MPI_Bcast(x0, n, MPI_DOUBLE, 0, MPI_COMM_WORLD);
 	
 	// Las matrices D^-1 y L+U se obtienen en el nodo cero
 	// y se envían a el resto de nodos.
-	Dinv = (double*) malloc(sizeof(double)*n*n);
-	LPU = (double*) malloc(sizeof(double)*n*n);
+	Dinv = (double*) malloc(sizeof(double)*n);
+	R = (double*) malloc(sizeof(double)*n*n);
+	C = (double*) malloc(sizeof(double)*n);
+	xkp1 = (double*) malloc(sizeof(double)*n);
+	xconv = (double*) malloc(sizeof(double)*n);
 	
 	// Ha ocurrido un error al reservar memoria en uno de los nodos:
 	// Cancelamos la ejecucción del programa.
-	if (Dinv == NULL || LPU == NULL)
+	if (Dinv == NULL || R == NULL || C == NULL || xkp1 == NULL || xconv == NULL)
 	{
 		fprintf(stderr, "Error obtaining Jacobi solution on \"%s\": %s\n", hname, strerror(errno));
 		MPI_Abort(MPI_COMM_WORLD, errno);
 	}
 	
-	// Obtenemos la inversa de la diagonal de A
-	// y la matriz L+U en el nodo cero. Una vez
-	// obtenidas, las mandamos al resto de nodos.
+	// Obtenemos la inversa de la diagonal de A,
+	// la matriz L+U y el vector C en el nodo cero. 
+	// Una vez obtenidas, las mandamos al resto de
+    // nodos.
 	if (rank == 0)
 	{
-		Dinv = diaginv(A, n, Dinv);
-		LPU = getlpu(A, n, LPU);
+		getrd(Dinv, R, A, b, C, n, n);
 		
-		MPI_Bcast(Dinv, n*n, MPI_DOUBLE, 0, MPI_COMM_WORLD);
-		MPI_Bcast(LPU, n*n, MPI_DOUBLE, 0, MPI_COMM_WORLD);
+		MPI_Bcast(Dinv, n, MPI_DOUBLE, 0, MPI_COMM_WORLD);
+		MPI_Bcast(R, n*n, MPI_DOUBLE, 0, MPI_COMM_WORLD);
+		
+		for (i = 1; i < size; i++)
+		{
+			MPI_Send(C, n, MPI_DOUBLE, i, 0, MPI_COMM_WORLD);
+		}
+		
+		p = omp_get_max_threads();
+		
+		#ifdef FORCE_SEQUENTIAL
+		p = 1;
+		#elif FORCE_OPENMP
+			p = omp_get_max_threads();
+			
+			#ifdef FORCE_THREADS
+			p = FORCE_THREADS;
+			#endif
+		#endif
 	}
 	else
 	{
-		MPI_Bcast(Dinv, n*n, MPI_DOUBLE, 0, MPI_COMM_WORLD);
-		MPI_Bcast(LPU, n*n, MPI_DOUBLE, 0, MPI_COMM_WORLD);
+		MPI_Bcast(Dinv, n, MPI_DOUBLE, 0, MPI_COMM_WORLD);
+		MPI_Bcast(R, n*n, MPI_DOUBLE, 0, MPI_COMM_WORLD);
+		MPI_Recv(C, n, MPI_DOUBLE, 0, 0, MPI_COMM_WORLD, &status);
 	}
 	
-	// Obtenemos las matrices T y C
-	// Utilizando estas matrices, transformamos
-	// la operación a la forma x1 = T*x0 + C.
-	//
-	// En cada uno de los nodos se obtiene la parte
-	// de la matriz T y del vector C que corresponda.
-	if (rank != 0)
-	{
-		getct(Dinv, LPU, T, b, C, chunk, n);
-		
-		#ifdef DEBUG
-		printf("C in %s (%d):\n", hname, rank);
-		printVec(C, chunk);
-		
-		printf("\nT in %s (%d):\n", hname, rank);
-		printMat(T, chunk, n);
-		#endif
-		
-		// Inicializamos x(k+1) y x(k) con el valor de x(0).
-		dcopy_seq(n, x0, xkp1);
-		dcopy_seq(n, x0, xk);
-	}
+	dcopy_seq(n, x0, xkp1);
 	
 	// Iteramos hasta alcanzar la razón de convergencia.
 	// Cada nodo obtendrá la parte que le corresponda de
@@ -159,18 +110,14 @@ int jacobi_mpi(double *A, double *b, double *x0, double conv, int n, int rank, i
 		{
 			// Recibimos el parámetro de convergencia de cada nodo y calculamos
 			// la raíz cuadrada para obtener la 2-norma
-			for (i = 0; i < size-1; i++)
+			for (i = 1; i < size; i++)
 			{
-				MPI_Bcast(x0 + chunk*i, chunk, MPI_DOUBLE, i+1, MPI_COMM_WORLD);
+				MPI_Bcast(x0 + chunk*(i-1), chunk, MPI_DOUBLE, i, MPI_COMM_WORLD);
 			}
 			
-			char trans = 'N';
-			double alpha = -1.0, beta = 1.0, gamma = 0.0, enode = 0.0;
-			int incx = 1;
-			
-			dgemv_seq(n, n, beta, A, x0, gamma, xconv);
-			daxpy_seq(n, alpha, b, xconv);
-			dnrm2_seq(n, xconv, &e);
+			dgemv_seq(n, n, 1.0, A, x0, 0.0, xconv, p);
+			daxpy_seq(n, -1.0, b, xconv, p);
+			dnrm2_seq(n, xconv, &e, p);
 			
 			#ifdef DEBUG
 			printf("(k = %d) e = %e / conv = %e\n", k, e, conv);
@@ -182,10 +129,12 @@ int jacobi_mpi(double *A, double *b, double *x0, double conv, int n, int rank, i
 			//
 			// Avisamos al resto de nodos de si deben continuar o si deben
 			// de acabar.
-			if (e < conv) {
+			if (e < conv)
+			{
 				run = 0;
 			}
-			else {
+			else
+			{
 				k++;
 			}
 			
@@ -194,12 +143,12 @@ int jacobi_mpi(double *A, double *b, double *x0, double conv, int n, int rank, i
 		else
 		{
 			// Calculamos la solución local y mandamos el parámetro de convergencia
-			jaciter(A + stride, b + stride, T, C, xk, xkp1, xconv, n);
+			jaciter(A, b, R, C, Dinv, x0, xkp1, xconv, n);
 			
 			// Mandamos los bloques de x(k) al resto de nodos
-			for (i = 0; i < size-1; i++)
+			for (i = 1; i < size; i++)
 			{
-				MPI_Bcast(xk + chunk*i, chunk, MPI_DOUBLE, i+1, MPI_COMM_WORLD);
+				MPI_Bcast(x0 + chunk*(i-1), chunk, MPI_DOUBLE, i, MPI_COMM_WORLD);
 			}
 
 			// Obtenemos del nodo cero la bandera que indica si debemos continuar
@@ -211,21 +160,11 @@ int jacobi_mpi(double *A, double *b, double *x0, double conv, int n, int rank, i
 	
 	MPI_Barrier(MPI_COMM_WORLD);
 	
-	// Liberamos la memoria utilizada por cada nodo
-	if (rank != 0)
-	{
-		free(C);
-		free(xkp1);
-		free(xk);
-		free(xconv);
-		free(T);
-	}
-	else
-	{
-		free(xconv);
-	}
-	
-	free(LPU);
+	// Liberamos la memoria utilizada
+	free(C);
+	free(xkp1);
+	free(xconv);
+	free(R);
 	free(Dinv);
 	
 	return k;

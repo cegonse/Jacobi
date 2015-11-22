@@ -1,6 +1,6 @@
 CC = icc
-CFLAGS = -O3 -g -mkl -openmp
-SRC = src/debug.c src/diaginv.c src/isdom.c src/lpu.c src/ct.c src/mathsub.c src/standard/iter.c src/standard/jacobi.c src/standard/main.c
+CFLAGS = -O3 -g -mkl -openmp -msse3
+SRC = src/debug.c src/isdom.c src/rd.c src/mathsub.c src/tools.c src/standard/iter.c src/standard/jacobi.c src/standard/main.c
 SEQ = -DFORCE_SEQUENTIAL
 OMP = -DFORCE_OPENMP
 DBG = -DDEBUG
@@ -8,19 +8,19 @@ DBG = -DDEBUG
 all :
 	$(CC) $(CFLAGS) $(SRC) -o bin/jacobi
 
-force-sequential : clean
+force-sequential :
 	$(CC) $(CFLAGS) $(SEQ) $(SRC) -o bin/jacobi
 	
-force-openmp : clean
+force-openmp :
 	$(CC) $(CFLAGS) $(OMP) $(SRC) -o bin/jacobi
 	
-debug : clean
+debug :
 	$(CC) $(CFLAGS) $(DBG) $(SRC) -o bin/jacobi
 	
-debug-sequential : clean
+debug-sequential :
 	$(CC) $(CFLAGS) $(SEQ) $(DBG) $(SRC) -o bin/jacobi
 	
-debug-openmp: clean
+debug-openmp :
 	$(CC) $(CFLAGS) $(OMP) $(DBG) $(SRC) -o bin/jacobi
 	
 clean :
